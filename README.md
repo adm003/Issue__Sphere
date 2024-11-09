@@ -46,7 +46,6 @@ This app is well-suited for:
 1. Clone the repository:
 ```bash
 git clone https://github.com/adm003/Issue__Sphere.git
-cd issue-sphere
 ```
 
 2. Install dependencies:
