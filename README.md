@@ -161,7 +161,7 @@ Ensure your MongoDB collection has a vector search index:
 
 ## 📞 Support
 
-For support, email your-email@example.com or create an issue in the repository.
+For support, email aditya3makhija@gmail.com or create an issue in the repository.
 
 ## 🔮 Future Enhancements
 
@@ -173,4 +173,3 @@ For support, email your-email@example.com or create an issue in the repository.
 - [ ] Implement feedback mechanism
 
 ---
-*Note: Replace placeholder values (aditya3makhija@gmail.com, @adm003, etc.) with your actual information before publishing.*
