@@ -1,88 +1,128 @@
-import streamlit as st # type: ignore
-from pymongo import MongoClient # type: ignore
-from sentence_transformers import SentenceTransformer # type: ignore
-import google.generativeai as genai # type: ignore
-import pymongo # type: ignore
+import streamlit as st
+from pymongo import MongoClient
+from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Initialize the embedding model and Google Gemini API
-model = SentenceTransformer("nomic-ai/nomic-embed-text-v1", trust_remote_code=True)
-genai.configure(api_key="GEMINI_API_KEY")
-gemini_model = genai.GenerativeModel("gemini-1.5-flash")
+@st.cache_resource
+def initialize_models():
+    model = SentenceTransformer("nomic-ai/nomic-embed-text-v1", trust_remote_code=True)
+    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    return model, genai.GenerativeModel("gemini-1.5-flash")
 
-# MongoDB setup
-client = MongoClient("MONGO_URI")
-db = client["myDatabase"]
-collection_clusters = db["oem_clusters"]
-collection_claims = db["oem_claims"]
+# MongoDB connection with error handling
+@st.cache_resource
+def initialize_mongodb():
+    try:
+        # Use the connection string from environment variable or default to your direct string
+        mongo_uri = os.getenv("MONGODB_URI")
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        # Verify connection
+        client.server_info()
+        db = client["myDatabase"]
+        return db
+    except Exception as e:
+        st.error(f"Failed to connect to MongoDB: {str(e)}")
+        return None
 
 # Helper function to generate embeddings
-def get_embedding(data):
+def get_embedding(model, data):
     return model.encode(data).tolist()
 
-st.image("./issue sphere.jpg",width = 150)
-# Streamlit UI setup
-st.title("Cluster Finder for issues")
-prompt = st.text_input("Enter a diagnostic issue to find relevant clusters:")
+def main():
+    st.image("./issue sphere.jpg", width=150)
+    st.title("Cluster Finder for issues")
 
-if st.button("Find Clusters"):
-    if prompt:
-        # Generate embedding for the input prompt
-        query_embedding = get_embedding(prompt)
+    # Initialize models
+    model, gemini_model = initialize_models()
 
-        # Vector search pipeline
-        pipeline = [
-            {
-                "$vectorSearch": {
-                    "index": "vector_index",
-                    "queryVector": query_embedding,
-                    "path": "embedding",
-                    "exact": True,
-                    "limit": 3
-                }
-            },
-            {
-                "$project": {
-                    "_id": 0,
-                    "Cluster #": 1,
-                    "Cluster Name": 1,
-                    "Description": 1,
-                    "score": {
-                        "$meta": "vectorSearchScore"
+    # Initialize MongoDB
+    db = initialize_mongodb()
+    
+    if db is None:
+        st.error("Cannot proceed without MongoDB connection. Please check your connection string.")
+        return
+
+    collection_clusters = db["oem_clusters"]
+    collection_claims = db["oem_claims"]
+
+    prompt = st.text_input("Enter a diagnostic issue to find relevant clusters:")
+
+    if st.button("Find Clusters"):
+        if prompt:
+            try:
+                # Generate embedding for the input prompt
+                query_embedding = get_embedding(model, prompt)
+
+                # Vector search pipeline
+                pipeline = [
+                    {
+                        "$vectorSearch": {
+                            "index": "vector_index",
+                            "queryVector": query_embedding,
+                            "path": "embedding",
+                            "exact": True,
+                            "limit": 3
+                        }
+                    },
+                    {
+                        "$project": {
+                            "_id": 0,
+                            "Cluster #": 1,
+                            "Cluster Name": 1,
+                            "Description": 1,
+                            "score": {
+                                "$meta": "vectorSearchScore"
+                            }
+                        }
                     }
-                }
-            }
-        ]
+                ]
 
-        # Execute the search
-        results = list(collection_clusters.aggregate(pipeline))
+                # Execute the search with timeout handling
+                results = list(collection_clusters.aggregate(pipeline, maxTimeMS=30000))
 
-        # Display the top 3 results
-        top_clusters = []
-        for i, cluster in enumerate(results):
-            cluster_info = f"Cluster #{cluster['Cluster #']}: {cluster['Cluster Name']}\n" \
-                           f"Description: {cluster['Description']}\nScore: {cluster['score']}\n"
-            st.write(f"**Cluster {i + 1}:**\n{cluster_info}")
-            top_clusters.append(cluster_info)
+                if not results:
+                    st.warning("No clusters found matching your query.")
+                    return
 
-        if len(top_clusters) == 3:
-            # Prepare prompt for Gemini
-            gemini_prompt = f"""
-            You are an expert vehicle diagnostics assistant. Based on the following cluster information,
-            suggest which cluster best addresses the issue of "{prompt}", and explain your reasoning:
+                # Display the top 3 results
+                top_clusters = []
+                for i, cluster in enumerate(results):
+                    cluster_info = f"Cluster #{cluster['Cluster #']}: {cluster['Cluster Name']}\n" \
+                                f"Description: {cluster['Description']}\nScore: {cluster['score']}\n"
+                    st.write(f"**Cluster {i + 1}:**\n{cluster_info}")
+                    top_clusters.append(cluster_info)
 
-            {top_clusters[0]}
+                if len(top_clusters) == 3:
+                    # Prepare prompt for Gemini
+                    gemini_prompt = f"""
+                    You are an expert vehicle diagnostics assistant. Based on the following cluster information,
+                    suggest which cluster best addresses the issue of "{prompt}", and explain your reasoning:
 
-            {top_clusters[1]}
+                    {top_clusters[0]}
 
-            {top_clusters[2]}
+                    {top_clusters[1]}
 
-            Which cluster would you recommend, and why?
-            """
-            # Generate response from Google Gemini
-            response = gemini_model.generate_content(gemini_prompt)
-            st.subheader("Gemini Recommendation")
-            st.write(response.text)
+                    {top_clusters[2]}
+
+                    Which cluster would you recommend, and why?
+                    """
+                    # Generate response from Google Gemini
+                    response = gemini_model.generate_content(gemini_prompt)
+                    st.subheader("Gemini Recommendation")
+                    st.write(response.text)
+                else:
+                    st.write("Not enough clusters returned from the search.")
+
+            except Exception as e:
+                st.error(f"An error occurred while processing your request: {str(e)}")
         else:
-            st.write("Not enough clusters returned from the search.")
-    else:
-        st.write("Please enter a prompt.")
+            st.write("Please enter a prompt.")
+
+if __name__ == "__main__":
+    main()
