@@ -2,29 +2,32 @@ import streamlit as st
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
-import os
-from dotenv import load_dotenv
+import toml
 
-# Load environment variables
-load_dotenv()
+# Load configuration
+@st.cache_resource
+def load_config():
+    try:
+        return toml.load("config.toml")
+    except Exception as e:
+        st.error(f"Failed to load configuration: {str(e)}")
+        return None
 
 # Initialize the embedding model and Google Gemini API
 @st.cache_resource
-def initialize_models():
-    model = SentenceTransformer("nomic-ai/nomic-embed-text-v1", trust_remote_code=True)
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-    return model, genai.GenerativeModel("gemini-1.5-flash")
+def initialize_models(config):
+    model = SentenceTransformer(config["model"]["sentence_transformer"], trust_remote_code=True)
+    genai.configure(api_key=config["api"]["google_api_key"])
+    return model, genai.GenerativeModel(config["model"]["gemini_model"])
 
 # MongoDB connection with error handling
 @st.cache_resource
-def initialize_mongodb():
+def initialize_mongodb(config):
     try:
-        # Use the connection string from environment variable or default to your direct string
-        mongo_uri = os.getenv("MONGODB_URI")
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        client = MongoClient(config["mongodb"]["uri"], serverSelectionTimeoutMS=5000)
         # Verify connection
         client.server_info()
-        db = client["myDatabase"]
+        db = client[config["mongodb"]["database"]]
         return db
     except Exception as e:
         st.error(f"Failed to connect to MongoDB: {str(e)}")
@@ -35,21 +38,28 @@ def get_embedding(model, data):
     return model.encode(data).tolist()
 
 def main():
-    st.image("./issue sphere.jpg", width=150)
-    st.title("Cluster Finder for issues")
+    # Load configuration
+    config = load_config()
+    if config is None:
+        st.error("Cannot proceed without configuration. Please check config.toml file.")
+        return
+
+    # Setup page
+    st.image(config["app"]["image_path"], width=config["app"]["image_width"])
+    st.title(config["app"]["title"])
 
     # Initialize models
-    model, gemini_model = initialize_models()
+    model, gemini_model = initialize_models(config)
 
     # Initialize MongoDB
-    db = initialize_mongodb()
+    db = initialize_mongodb(config)
     
     if db is None:
         st.error("Cannot proceed without MongoDB connection. Please check your connection string.")
         return
 
-    collection_clusters = db["oem_clusters"]
-    collection_claims = db["oem_claims"]
+    collection_clusters = db[config["mongodb"]["clusters_collection"]]
+    collection_claims = db[config["mongodb"]["claims_collection"]]
 
     prompt = st.text_input("Enter a diagnostic issue to find relevant clusters:")
 
@@ -67,7 +77,7 @@ def main():
                             "queryVector": query_embedding,
                             "path": "embedding",
                             "exact": True,
-                            "limit": 5
+                            "limit": 3
                         }
                     },
                     {
