@@ -33,7 +33,7 @@ def initialize_mongodb(config):
         st.error(f"Failed to connect to MongoDB: {str(e)}")
         return None
 
-# Helper function to generate embeddings
+# Function to generate embeddings
 def get_embedding(model, data):
     return model.encode(data).tolist()
 
