@@ -67,7 +67,7 @@ def main():
                             "queryVector": query_embedding,
                             "path": "embedding",
                             "exact": True,
-                            "limit": 3
+                            "limit": 5
                         }
                     },
                     {
