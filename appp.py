@@ -1,8 +1,8 @@
-import streamlit as st
-from pymongo import MongoClient
-from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
-import pymongo
+import streamlit as st # type: ignore
+from pymongo import MongoClient # type: ignore
+from sentence_transformers import SentenceTransformer # type: ignore
+import google.generativeai as genai # type: ignore
+import pymongo # type: ignore
 
 # Initialize the embedding model and Google Gemini API
 model = SentenceTransformer("nomic-ai/nomic-embed-text-v1", trust_remote_code=True)
@@ -19,7 +19,7 @@ collection_claims = db["oem_claims"]
 def get_embedding(data):
     return model.encode(data).tolist()
 
-st.image("/content/issue sphere.jpg",width = 150)
+st.image("./issue sphere.jpg",width = 150)
 # Streamlit UI setup
 st.title("Cluster Finder for issues")
 prompt = st.text_input("Enter a diagnostic issue to find relevant clusters:")

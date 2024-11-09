@@ -41,29 +41,39 @@ This app is well-suited for:
 - Knowledge exploration tools that connect users to highly relevant content clusters.
 - Hackathons or prototype environments where rapid, accurate data retrieval is essential.
 
-## Installation and Setup
+## Setup
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/yourusername/issuesphere.git
-   cd issuesphere
+1. Clone the repository:
+```bash
+git clone https://github.com/adm003/Issue__Sphere.git
+cd issue-sphere
+```
 
-2. **Install Dependencies:Make sure you have Python installed, then install the required packages.**:
-   ```bash
-   pip install -r requirements.txt
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-3. **Set Up MongoDB Atlas**:
-   Create a MongoDB Atlas account and set up a cluster.
-   Import your documents, claims, and clusters into MongoDB Atlas.
-   Update the MongoDB connection URI in the code.
+3. Set up environment variables:
+   - Create a `.env` file with your API keys and MongoDB URI
+   - Never commit this file to GitHub
 
-4. **Configure Gemini API Access**:
-   Obtain access to Gemini API 1.5 Flash.
-   Add the API credentials to your environment or in the config file.
+4. Run the application:
+```bash
+streamlit run app.py
+```
 
-1. **Run the Streamlit App**:
-   ```bash
-   streamlit run app.py 
+## Features
 
+- Vector search using MongoDB
+- Semantic similarity using SentenceTransformer
+- AI-powered recommendations using Google Gemini
+- Interactive UI with Streamlit
 
+## Security Note
+
+Make sure to:
+- Never commit API keys or sensitive credentials
+- Use environment variables for all sensitive information
+- Keep your dependencies updated
 
