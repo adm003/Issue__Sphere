@@ -5,9 +5,12 @@ from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 import toml
-from config import MONGODB_URI, GOOGLE_API_KEY
-mongo_uri = MONGODB_URI
-google_api_key = GOOGLE_API_KEY
+# from config import MONGODB_URI, GOOGLE_API_KEY
+# mongo_uri = MONGODB_URI
+# google_api_key = GOOGLE_API_KEY
+
+mongo_uri = st.secrets["mongodb"]["uri"]
+google_api_key = st.secrets["google"]["api_key"]
 
 # Load configuration
 @st.cache_resource
