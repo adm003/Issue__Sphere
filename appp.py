@@ -1,8 +1,13 @@
+import os
+from dotenv import load_dotenv
 import streamlit as st
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 import toml
+from config import MONGODB_URI, GOOGLE_API_KEY
+mongo_uri = MONGODB_URI
+google_api_key = GOOGLE_API_KEY
 
 # Load configuration
 @st.cache_resource
@@ -17,14 +22,14 @@ def load_config():
 @st.cache_resource
 def initialize_models(config):
     model = SentenceTransformer(config["model"]["sentence_transformer"], trust_remote_code=True)
-    genai.configure(api_key=config["api"]["google_api_key"])
+    genai.configure(api_key=google_api_key)
     return model, genai.GenerativeModel(config["model"]["gemini_model"])
 
 # MongoDB connection with error handling
 @st.cache_resource
 def initialize_mongodb(config):
     try:
-        client = MongoClient(config["mongodb"]["uri"], serverSelectionTimeoutMS=5000)
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
         # Verify connection
         client.server_info()
         db = client[config["mongodb"]["database"]]
